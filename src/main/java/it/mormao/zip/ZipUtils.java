@@ -7,17 +7,18 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.*;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+@SuppressWarnings("unused")
 public class ZipUtils {
-	@SuppressWarnings("unused")
+
 	public static void unzip(Path in, final Path folderOut) throws IOException{
 		unzip(in, folderOut, (Predicate<ZipEntry>) null);
 	}
 
-	@SuppressWarnings("unused")
 	public static void unzip(Path in, Path folderOut, String glob) throws IOException{
 		if(glob == null || glob.isEmpty())
 			unzip(in, folderOut, (Predicate<ZipEntry>) null);
@@ -27,14 +28,19 @@ public class ZipUtils {
 		}
 	}
 
-	public static void unzip (Path in, final Path folderOut, Predicate<ZipEntry> filter) throws IOException{
-		forEachEntryExec(in, folderOut, filter, (zipFile, zipEntry) -> {
-			if(!Files.exists(folderOut)){
-				try {
-					Files.createDirectory(folderOut);
-				} catch (FileAlreadyExistsException faee){
-					// Nothing to do: directory already exists
+	public static void unzip (final Path in, final Path folderOut, final Predicate<ZipEntry> filter) throws IOException{
+		final AtomicBoolean folderExists = new AtomicBoolean(); // Flag for creating output folder (done only if needed)
+		forEachEntryExec(in, filter, (zipFile, zipEntry) -> {
+			if(!folderExists.get()) {
+				// Creating folder if does not exists
+				if (!Files.exists(folderOut)) {
+					try {
+						Files.createDirectory(folderOut);
+					} catch (FileAlreadyExistsException faee) {
+						// Nothing to do: directory already exists
+					}
 				}
+				folderExists.set(true);
 			}
 			try(InputStream inputStream = zipFile.getInputStream(zipEntry);
 			    OutputStream outputStream = Files.newOutputStream(folderOut.resolve(zipEntry.getName()))){
@@ -42,16 +48,14 @@ public class ZipUtils {
 			}
 		});
 	}
-	public static void forEachEntryExec(Path in, Path folderOut, Predicate<ZipEntry> filter, ThrowingIOBiConsumer<ZipFile, ZipEntry> consumer) throws IOException {
-		if(in != null & folderOut != null){
-			try(ZipFile zipFile = new ZipFile(in.toFile())){
-				Enumeration<? extends ZipEntry> entries = zipFile.entries();
-				ZipEntry entry;
-				while(entries.hasMoreElements()){
-					entry = entries.nextElement();
-					if(filter == null || filter.test(entry)){
-						consumer.accept(zipFile, entry);
-					}
+	public static void forEachEntryExec(final Path in, final Predicate<ZipEntry> filter, final ThrowingIOBiConsumer<ZipFile, ZipEntry> consumer) throws IOException {
+		try(ZipFile zipFile = new ZipFile(in.toFile())){
+			Enumeration<? extends ZipEntry> entries = zipFile.entries();
+			ZipEntry entry;
+			while(entries.hasMoreElements()){
+				entry = entries.nextElement();
+				if(filter == null || filter.test(entry)){
+					consumer.accept(zipFile, entry);
 				}
 			}
 		}
