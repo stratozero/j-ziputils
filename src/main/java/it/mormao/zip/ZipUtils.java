@@ -15,11 +15,11 @@ import java.util.zip.ZipFile;
 @SuppressWarnings("unused")
 public class ZipUtils {
 
-	public static void unzip(Path in, final Path folderOut) throws IOException{
+	public static void unzip(final Path in, final Path folderOut) throws IOException{
 		unzip(in, folderOut, (Predicate<ZipEntry>) null);
 	}
 
-	public static void unzip(Path in, Path folderOut, String glob) throws IOException{
+	public static void unzip(final Path in, final Path folderOut, String glob) throws IOException{
 		if(glob == null || glob.isEmpty())
 			unzip(in, folderOut, (Predicate<ZipEntry>) null);
 		else {
